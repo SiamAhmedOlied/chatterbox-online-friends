@@ -1,12 +1,39 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState } from "react";
+import LoginForm from "@/components/LoginForm";
+import Chat from "@/components/Chat";
+import { v4 as uuidv4 } from "uuid";
+import { Toaster } from "@/components/ui/toaster";
+
+interface User {
+  id: string;
+  name: string;
+  avatarSrc: string;
+}
 
 const Index = () => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  const handleLogin = (name: string) => {
+    // Create a user with a random avatar
+    const avatarId = Math.floor(Math.random() * 100);
+    const gender = Math.random() > 0.5 ? "men" : "women";
+    
+    setCurrentUser({
+      id: uuidv4(),
+      name: name,
+      avatarSrc: `https://randomuser.me/api/portraits/${gender}/${avatarId}.jpg`,
+    });
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="h-screen flex flex-col">
+      {currentUser ? (
+        <Chat currentUser={currentUser} />
+      ) : (
+        <LoginForm onLogin={handleLogin} />
+      )}
+      <Toaster />
     </div>
   );
 };
