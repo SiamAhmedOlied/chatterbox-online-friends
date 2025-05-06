@@ -11,6 +11,7 @@ const Index = () => {
 
   useEffect(() => {
     if (!loading && !user) {
+      // Redirect to auth page if not logged in
       navigate('/auth');
     }
   }, [user, loading, navigate]);
