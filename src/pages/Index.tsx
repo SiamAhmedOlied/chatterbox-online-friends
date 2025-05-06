@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import SupabaseChat from "@/components/SupabaseChat";
 import { Toaster } from "@/components/ui/toaster";
+import { MessageSquare } from "lucide-react";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -27,9 +28,13 @@ const Index = () => {
     );
   }
 
+  if (!user) {
+    return null; // Will redirect in useEffect
+  }
+
   return (
     <div className="h-screen flex flex-col">
-      {user ? <SupabaseChat /> : null}
+      <SupabaseChat />
       <Toaster />
     </div>
   );

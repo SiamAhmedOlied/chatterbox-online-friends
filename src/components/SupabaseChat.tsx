@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import ChatSidebar from "./ChatSidebar";
 import ChatHeader from "./ChatHeader";
 import ChatArea from "./ChatArea";
@@ -18,42 +18,42 @@ const SupabaseChat: React.FC = () => {
   const { toast } = useToast();
   
   // Fetch conversations
-  useEffect(() => {
+  const fetchConversations = useCallback(async () => {
     if (!user) return;
 
-    const fetchConversations = async () => {
-      try {
-        const { data: participantData, error: participantError } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('user_id', user.id);
-          
-        if (participantError) throw participantError;
+    try {
+      const { data: participantData, error: participantError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id);
         
-        if (participantData && participantData.length > 0) {
-          const conversationIds = participantData.map(p => p.conversation_id);
+      if (participantError) throw participantError;
+      
+      if (participantData && participantData.length > 0) {
+        const conversationIds = participantData.map(p => p.conversation_id);
+        
+        const { data: conversationsData, error: conversationsError } = await supabase
+          .from('conversations')
+          .select('*')
+          .in('id', conversationIds)
+          .order('updated_at', { ascending: false });
           
-          const { data: conversationsData, error: conversationsError } = await supabase
-            .from('conversations')
-            .select('*')
-            .in('id', conversationIds)
-            .order('updated_at', { ascending: false });
-            
-          if (conversationsError) throw conversationsError;
-          
-          if (conversationsData && conversationsData.length > 0) {
-            setConversations(conversationsData);
-            // Set first conversation as active by default
-            if (!activeConversationId) {
-              setActiveConversationId(conversationsData[0].id);
-            }
+        if (conversationsError) throw conversationsError;
+        
+        if (conversationsData && conversationsData.length > 0) {
+          setConversations(conversationsData);
+          // Set first conversation as active by default if none selected
+          if (!activeConversationId) {
+            setActiveConversationId(conversationsData[0].id);
           }
         }
-      } catch (error) {
-        console.error("Error fetching conversations:", error);
       }
-    };
-    
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+    }
+  }, [user, activeConversationId]);
+  
+  useEffect(() => {
     fetchConversations();
     
     // Subscribe to changes in conversations
@@ -73,7 +73,7 @@ const SupabaseChat: React.FC = () => {
     return () => {
       supabase.removeChannel(conversationSubscription);
     };
-  }, [user]);
+  }, [fetchConversations]);
 
   // Fetch messages for active conversation
   useEffect(() => {
@@ -245,11 +245,14 @@ const SupabaseChat: React.FC = () => {
     // Count unread messages
     const unreadCount = messages.filter(m => m.conversation_id === conv.id && m.sender_id !== user?.id && !m.read).length;
     
+    // Get the right avatar for the conversation
+    const otherParticipant = Object.values(participants).find(p => p.id !== user?.id);
+    
     return {
       id: conv.id,
       name: conv.name,
-      avatarSrc: otherProfile?.avatar_url || "https://randomuser.me/api/portraits/men/32.jpg",
-      online: Boolean(otherProfile?.online),
+      avatarSrc: otherParticipant?.avatar_url || "https://randomuser.me/api/portraits/men/32.jpg",
+      online: Boolean(otherParticipant?.online),
       lastMessage: lastMessage ? {
         content: lastMessage.content,
         timestamp: new Date(lastMessage.created_at),
@@ -270,10 +273,11 @@ const SupabaseChat: React.FC = () => {
           name: profile.name,
           avatarSrc: profile.avatar_url || "",
         }}
+        onRefresh={fetchConversations}
       />
       
       <div className="flex-1 flex flex-col h-full">
-        {activeConversation && (
+        {activeConversation ? (
           <>
             <ChatHeader
               conversationName={activeConversation.name}
@@ -303,6 +307,16 @@ const SupabaseChat: React.FC = () => {
             
             <MessageInput onSendMessage={handleSendMessage} />
           </>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full">
+            <div className="h-24 w-24 rounded-full bg-chat-purple/20 flex items-center justify-center mb-4">
+              <MessageSquare className="h-12 w-12 text-chat-purple" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Welcome to ChatterBox</h2>
+            <p className="text-chat-text-secondary">
+              Select a conversation or start a new one to begin messaging
+            </p>
+          </div>
         )}
       </div>
     </div>
